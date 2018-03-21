@@ -27,19 +27,31 @@ func connect() {
 
 }
 
+func createTable()  {
+	r,e:=db.Exec("create table if not EXISTS people(id int not null,name varchar(20))")
+
+	if e!=nil{
+
+		panic(e)
+	}
+
+	r.RowsAffected()
+
+}
+
 /**
   单行查询
  */
 func queryOne() {
-	var n string
-	var a int
-	err := db.QueryRow("SELECT * FROM people WHERE name=?", "zhangcong").Scan(&n, &a)
+	var id int
+	var name string
+	err := db.QueryRow("SELECT * FROM people WHERE id=?", 1).Scan(&id, &name)
 
 	if err != nil {
 		panic("queryone error")
 	}
 
-	fmt.Println(n, a)
+	fmt.Println(id, name)
 
 }
 
@@ -62,11 +74,35 @@ func queryMany() {
 	for n,index:=range rows {
 		fmt.Println(n,index)
 	}
+
+	// Make a slice for the values
+	values := make([]sql.RawBytes, len(rows))
+	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
+	// references into such a slice
+	// See http://code.google.com/p/go-wiki/wiki/InterfaceSlice for details
+	scanArgs := make([]interface{}, len(values))
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+
 	for row.Next() {
-		var n string
-		var a int
-		row.Scan(&n, &a)
-		fmt.Println(n, a)
+		e:=row.Scan(scanArgs...)
+
+		if e!=nil {
+			panic(e)
+		}
+
+		var value string
+		for i, col := range values {
+			// Here we can check if the value is nil (NULL value)
+			if col == nil {
+				value = "NULL"
+			} else {
+				value = string(values[i])
+			}
+			fmt.Println(rows[i]+": "+ value)
+		}
+
 	}
 }
 
@@ -81,6 +117,7 @@ func insert() {
 	//}
 	//index,_:=r.RowsAffected()
 	//fmt.Println(index)
+
 	//方案二
 	smtp, er := db.Prepare("INSERT INTO people(name,age)VALUE (?,?)")
 	if er != nil {
@@ -166,4 +203,6 @@ func main() {
 	//update()
 
 	//commit()
+
+	//createTable()
 }
